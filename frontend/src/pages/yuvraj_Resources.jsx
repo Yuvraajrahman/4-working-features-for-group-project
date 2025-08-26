@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { yuvrajListCourses, yuvrajListCourseItems } from "../services/yuvraj_resources_api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { yuvrajCreateCourseItem, yuvrajDeleteCourseItem, yuvrajUpdateCourseItem } from "../services/yuvraj_resources_write_api.js";
+import { yuvrajCreateCourse, yuvrajCreateCourseItem, yuvrajDeleteCourseItem, yuvrajDeleteCourse, yuvrajUpdateCourseItem } from "../services/yuvraj_resources_write_api.js";
 import YuvrajDoneOverlay from "../components/yuvraj_DoneOverlay.jsx";
 import HamburgerMenu from "../components/HamburgerMenu.jsx";
 
@@ -165,6 +165,81 @@ const AddDocumentButton = ({ courseId, onAdded, onOverlay }) => {
   );
 };
 
+const AddPlaylistButton = ({ onAdded, onOverlay }) => {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleCreatePlaylist = async () => {
+    if (!name.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      await yuvrajCreateCourse({ 
+        name: name.trim(), 
+        description: description.trim() || "Course playlist" 
+      });
+      
+      setName(""); 
+      setDescription(""); 
+      setShowForm(false);
+      onAdded?.();
+      onOverlay?.({ show: true, text: 'Playlist Created', color: 'green' });
+    } catch (error) {
+      console.error("Failed to create playlist:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!showForm) {
+    return (
+      <button 
+        className="btn btn-primary btn-sm" 
+        onClick={() => setShowForm(true)}
+      >
+        + Create Playlist
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50 p-3 rounded-lg border">
+      <h3 className="font-medium text-gray-800 mb-2">Create New Playlist</h3>
+      <div className="space-y-2">
+        <input 
+          value={name} 
+          onChange={(e) => setName(e.target.value)} 
+          placeholder="Playlist name (e.g., Mathematics 101)" 
+          className="input input-bordered input-sm w-full" 
+        />
+        <input 
+          value={description} 
+          onChange={(e) => setDescription(e.target.value)} 
+          placeholder="Description (optional)" 
+          className="input input-bordered input-sm w-full" 
+        />
+        <div className="flex gap-2">
+          <button 
+            className="btn btn-primary btn-sm" 
+            onClick={handleCreatePlaylist}
+            disabled={isLoading || !name.trim()}
+          >
+            {isLoading ? "Creating..." : "Create"}
+          </button>
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={() => { setShowForm(false); setName(""); setDescription(""); }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Yuvraj_Resources() {
   const { isInstitution } = useAuth();
   const [courses, setCourses] = useState([]);
@@ -199,16 +274,46 @@ export default function Yuvraj_Resources() {
         </div>
 
         <div className="bg-white rounded-2xl p-4 shadow border">
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            {courses.map((c) => (
-              <button
-                key={c._id}
-                className={`px-3 py-1.5 rounded-full text-sm border ${activeCourse === c._id ? 'bg-sky-600 text-white border-sky-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
-                onClick={() => setActiveCourse(c._id)}
-              >
-                {c.name}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3">
+              {courses.map((c) => (
+                <div key={c._id} className="flex items-center gap-1">
+                  <button
+                    className={`px-3 py-1.5 rounded-full text-sm border ${activeCourse === c._id ? 'bg-sky-600 text-white border-sky-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                    onClick={() => setActiveCourse(c._id)}
+                  >
+                    {c.name}
+                  </button>
+                  {isInstitution && activeCourse === c._id && (
+                    <button 
+                      className="btn btn-xs btn-error ml-1" 
+                      onClick={async () => {
+                        if (window.confirm("Delete this playlist and all its content?")) {
+                          await yuvrajDeleteCourse(c._id);
+                          setOverlay({ show: true, text: 'Playlist Deleted', color: 'red' });
+                          yuvrajListCourses().then((cs) => {
+                            setCourses(cs);
+                            setActiveCourse(cs[0]?._id || null);
+                          });
+                          setTimeout(() => setOverlay({ show: false }), 1200);
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {isInstitution && (
+              <AddPlaylistButton 
+                onAdded={() => yuvrajListCourses().then((cs) => {
+                  setCourses(cs);
+                  if (cs[0] && !activeCourse) setActiveCourse(cs[0]._id);
+                })} 
+                onOverlay={setOverlay} 
+              />
+            )}
           </div>
 
           <div className="flex items-center gap-2 mb-4">
@@ -232,7 +337,16 @@ export default function Yuvraj_Resources() {
                 return (
                   <div key={v._id} className="space-y-2">
                     <div className="font-medium text-gray-800">{v.title}</div>
-                    {thumb && <img src={thumb} alt="thumbnail" className="w-full max-w-xl rounded border" />}
+                    {thumb && (
+                      <div className="relative group cursor-pointer" onClick={() => window.open(v.url, '_blank')}>
+                        <img src={thumb} alt="thumbnail" className="w-full max-w-xl rounded border hover:opacity-90 transition-opacity" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
+                            <div className="w-0 h-0 border-l-[20px] border-l-white border-y-[12px] border-y-transparent ml-1"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <YouTubeEmbed url={v.url} />
                     {isInstitution && (
                       <div className="flex gap-2">

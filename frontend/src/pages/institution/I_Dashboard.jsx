@@ -10,6 +10,8 @@ export default function I_Dashboard() {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg]   = useState("");
   const [requests, setRequests] = useState([]);
+  const [currentInstructors, setCurrentInstructors] = useState([]);
+  const [currentStudents, setCurrentStudents] = useState([]);
   const [overlay, setOverlay] = useState({ show: false, text: '', color: 'blue' });
 
   useEffect(() => {
@@ -37,6 +39,17 @@ export default function I_Dashboard() {
       });
     // Load signup requests
     yuvrajListSignupRequests(idOrName).then(setRequests).catch(() => setRequests([]));
+    
+    // Load current members
+    fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/instructors`)
+      .then(res => res.ok ? res.json() : [])
+      .then(setCurrentInstructors)
+      .catch(() => setCurrentInstructors([]));
+      
+    fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/students`)
+      .then(res => res.ok ? res.json() : [])
+      .then(setCurrentStudents)
+      .catch(() => setCurrentStudents([]));
   }, [idOrName]);
 
   if (loading) return <p>Loading...</p>;
@@ -301,6 +314,17 @@ export default function I_Dashboard() {
                           setRequests(prev => prev.filter(x => x._id !== r._id));
                           setOverlay({ show: true, text: 'Member approved', color: 'blue' });
                           setTimeout(() => setOverlay({ show: false }), 1200);
+                          
+                          // Refresh member lists
+                          if (r.role === 'instructor') {
+                            fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/instructors`)
+                              .then(res => res.ok ? res.json() : [])
+                              .then(setCurrentInstructors);
+                          } else if (r.role === 'student') {
+                            fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/students`)
+                              .then(res => res.ok ? res.json() : [])
+                              .then(setCurrentStudents);
+                          }
                         }} className="btn btn-xs">Approve</button>
                         <button onClick={async () => {
                           const u = await yuvrajUpdateSignupStatus(r._id, 'rejected');
@@ -314,6 +338,43 @@ export default function I_Dashboard() {
                 ))}
               </div>
             )}
+          </div>
+          
+          {/* Current Members Lists */}
+          <div style={{ marginTop: "1.5rem", width: "100%" }}>
+            <h3 style={{ margin: 0, marginBottom: ".5rem" }}>Current Instructors ({currentInstructors.length})</h3>
+            <div style={{ maxHeight: "150px", overflowY: "auto", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: ".5rem", padding: ".5rem" }}>
+              {currentInstructors.length === 0 ? (
+                <div style={{ color: "#64748b", fontSize: ".875rem" }}>No instructors</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '.25rem' }}>
+                  {currentInstructors.map((i) => (
+                    <div key={i._id} style={{ fontSize: '.875rem', color: '#374151' }}>
+                      <span style={{ fontWeight: 500 }}>{i.name}</span>
+                      {i.email && <span style={{ color: '#64748b', marginLeft: '.5rem' }}>({i.email})</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div style={{ marginTop: "1rem", width: "100%" }}>
+            <h3 style={{ margin: 0, marginBottom: ".5rem" }}>Current Students ({currentStudents.length})</h3>
+            <div style={{ maxHeight: "150px", overflowY: "auto", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: ".5rem", padding: ".5rem" }}>
+              {currentStudents.length === 0 ? (
+                <div style={{ color: "#64748b", fontSize: ".875rem" }}>No students</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '.25rem' }}>
+                  {currentStudents.map((s) => (
+                    <div key={s._id} style={{ fontSize: '.875rem', color: '#374151' }}>
+                      <span style={{ fontWeight: 500 }}>{s.name}</span>
+                      {s.email && <span style={{ color: '#64748b', marginLeft: '.5rem' }}>({s.email})</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

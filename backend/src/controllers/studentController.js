@@ -76,14 +76,16 @@ export async function loginStudent(req, res) {
       return res.status(401).json({ message: "Invalid password." });
     }
 
-    return res.json({ token: "demo-token", student: { id: stud._id, name: stud.name } });
+    // Check approval status
     try {
       const { default: SignupRequest } = await import("../models/yuvraj_SignupRequest.js");
       const approved = await SignupRequest.findOne({ role: "student", email: stud.email, status: "approved" });
       if (!approved) {
         return res.status(403).json({ message: "Signup pending approval by institution" });
       }
-    } catch (_) {}
+    } catch (e) {
+      console.warn("Signup approval check skipped:", e?.message);
+    }
 
     return res.json({ token: "demo-token", student: { id: stud._id, name: stud.name } });
 
