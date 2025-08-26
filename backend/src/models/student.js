@@ -2,7 +2,11 @@ import mongoose from "mongoose";
 
 const studentSchema = new mongoose.Schema(
   {
-    
+    studentId: {
+      type: String,
+      unique: true,
+      sparse: true // Allow multiple null values, but unique non-null values
+    },
     name: {
       type: String,
       required: true

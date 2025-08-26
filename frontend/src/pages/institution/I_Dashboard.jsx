@@ -1,18 +1,26 @@
 // frontend/src/pages/institution/I_Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { yuvrajListSignupRequests, yuvrajUpdateSignupStatus } from "../../services/yuvraj_signup_api";
-import YuvrajDoneOverlay from "../../components/yuvraj_DoneOverlay.jsx";
 
 export default function I_Dashboard() {
   const { idOrName } = useParams();
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg]   = useState("");
-  const [requests, setRequests] = useState([]);
   const [currentInstructors, setCurrentInstructors] = useState([]);
   const [currentStudents, setCurrentStudents] = useState([]);
-  const [overlay, setOverlay] = useState({ show: false, text: '', color: 'blue' });
+
+  const loadMembers = () => {
+    fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/instructors`)
+      .then(res => res.ok ? res.json() : [])
+      .then(setCurrentInstructors)
+      .catch(() => setCurrentInstructors([]));
+      
+    fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/students`)
+      .then(res => res.ok ? res.json() : [])
+      .then(setCurrentStudents)
+      .catch(() => setCurrentStudents([]));
+  };
 
   useEffect(() => {
     if (!idOrName) return;
@@ -37,19 +45,13 @@ export default function I_Dashboard() {
         setErrMsg("Failed to load dashboard data.");
         setLoading(false);
       });
-    // Load signup requests
-    yuvrajListSignupRequests(idOrName).then(setRequests).catch(() => setRequests([]));
     
     // Load current members
-    fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/instructors`)
-      .then(res => res.ok ? res.json() : [])
-      .then(setCurrentInstructors)
-      .catch(() => setCurrentInstructors([]));
-      
-    fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/students`)
-      .then(res => res.ok ? res.json() : [])
-      .then(setCurrentStudents)
-      .catch(() => setCurrentStudents([]));
+    loadMembers();
+    
+    // Refresh members every 10 seconds to catch new signups
+    const interval = setInterval(loadMembers, 10000);
+    return () => clearInterval(interval);
   }, [idOrName]);
 
   if (loading) return <p>Loading...</p>;
@@ -88,7 +90,6 @@ export default function I_Dashboard() {
       <h1 className="text-4xl font-bold text-gray-800 mb-8">
         Dashboard
       </h1>
-      {overlay.show && <YuvrajDoneOverlay show text={overlay.text} color={overlay.color} />}
 
       <div
         style={{
@@ -294,51 +295,7 @@ export default function I_Dashboard() {
             {pencilIcon}
             Edit Institution Details
           </Link>
-          {/* Joining Requests */}
-          <div style={{ marginTop: "1.5rem", width: "100%" }}>
-            <h3 style={{ margin: 0, marginBottom: ".5rem" }}>Joining Requests</h3>
-            {requests.length === 0 ? (
-              <div style={{ color: "#64748b" }}>No pending requests</div>
-            ) : (
-              <div style={{ display: 'grid', gap: '.5rem' }}>
-                {requests.map((r) => (
-                  <div key={r._id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '.5rem', padding: '.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{r.name} <span style={{ color: '#64748b', fontWeight: 400 }}>({r.role})</span></div>
-                        <div style={{ color: '#64748b', fontSize: '.875rem' }}>{r.email}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '.5rem' }}>
-                        <button onClick={async () => {
-                          const u = await yuvrajUpdateSignupStatus(r._id, 'approved');
-                          setRequests(prev => prev.filter(x => x._id !== r._id));
-                          setOverlay({ show: true, text: 'Member approved', color: 'blue' });
-                          setTimeout(() => setOverlay({ show: false }), 1200);
-                          
-                          // Refresh member lists
-                          if (r.role === 'instructor') {
-                            fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/instructors`)
-                              .then(res => res.ok ? res.json() : [])
-                              .then(setCurrentInstructors);
-                          } else if (r.role === 'student') {
-                            fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/students`)
-                              .then(res => res.ok ? res.json() : [])
-                              .then(setCurrentStudents);
-                          }
-                        }} className="btn btn-xs">Approve</button>
-                        <button onClick={async () => {
-                          const u = await yuvrajUpdateSignupStatus(r._id, 'rejected');
-                          setRequests(prev => prev.filter(x => x._id !== r._id));
-                          setOverlay({ show: true, text: 'Request rejected', color: 'red' });
-                          setTimeout(() => setOverlay({ show: false }), 1200);
-                        }} className="btn btn-xs">Reject</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+
           
           {/* Current Members Lists */}
           <div style={{ marginTop: "1.5rem", width: "100%" }}>

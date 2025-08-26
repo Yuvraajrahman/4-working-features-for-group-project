@@ -77,7 +77,7 @@ export async function loginInstructor(req, res) {
 
     const instr = await Instructor.findOne({ email: email.toLowerCase().trim() });
     if (!instr) {
-      return res.status(401).json({ message: "Instructor not found." });
+      return res.status(401).json({ message: "Instructor not found. Please sign up first." });
     }
 
     const isValidPassword = await bcrypt.compare(password, instr.password);
@@ -85,18 +85,22 @@ export async function loginInstructor(req, res) {
       return res.status(401).json({ message: "Invalid password." });
     }
 
-    // Approval requirement: instructor must have approved signup for an institution
-    try {
-      const { default: SignupRequest } = await import("../models/yuvraj_SignupRequest.js");
-      const approved = await SignupRequest.findOne({ role: "instructor", email: instr.email, status: "approved" });
-      if (!approved) {
-        return res.status(403).json({ message: "Signup pending approval by institution" });
-      }
-    } catch (e) {
-      console.warn("Signup approval check skipped:", e?.message);
-    }
+    // No approval check needed - signup is automatic
 
-    return res.json({ token: "demo-token", instructor: { id: instr._id, name: instr.name } });
+    // Populate institution data for frontend use
+    const instructorWithInstitutions = await Instructor.findById(instr._id).populate('institutions', 'name slug');
+    const primaryInstitution = instructorWithInstitutions.institutions[0]; // Use first institution
+
+    return res.json({ 
+      token: "demo-token", 
+      instructor: { 
+        id: instr._id, 
+        name: instr.name, 
+        email: instr.email,
+        institutionSlug: primaryInstitution?.slug,
+        institutionName: primaryInstitution?.name
+      } 
+    });
 
   } catch (err) {
     console.error("Instructor login error:", err);

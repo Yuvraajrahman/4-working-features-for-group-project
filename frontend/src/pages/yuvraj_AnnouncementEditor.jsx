@@ -67,7 +67,9 @@ const Yuvraj_AnnouncementEditor = () => {
           content, 
           pinned, 
           announcementType,
-          author: user?.name || "Institution" 
+          author: user?.name || "Institution",
+          institutionId: user?.id,
+          institutionSlug: user?.slug
         });
       } else if (id) {
         await yuvrajUpdateAnnouncement(id, { 

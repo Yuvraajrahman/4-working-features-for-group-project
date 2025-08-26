@@ -43,7 +43,7 @@ export default function Signup() {
           return;
         }
         await yuvrajCreateSignupRequest({ role, name: form.name, email: form.email, institutionSlug });
-        setSuccess("Request sent to institution. You'll be able to log in after approval.");
+        setSuccess("Account created successfully! You can now log in with your credentials.");
         setForm({});
         setTimeout(() => navigate("/auth/login"), 1500);
       }

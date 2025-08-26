@@ -11,6 +11,8 @@ export default function Yuvraj_Helpdesk() {
   const [form, setForm] = useState({ category: "consultation", title: "", description: "", assigneeType: "instructor" });
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [instructors, setInstructors] = useState([]);
+  const [responseForm, setResponseForm] = useState({ requestId: null, message: "", status: "resolved" });
+  const [showResponseForm, setShowResponseForm] = useState(null);
 
   useEffect(() => {
     yuvrajListConsultationSlots().then(setSlots);
@@ -33,6 +35,18 @@ export default function Yuvraj_Helpdesk() {
 
   const canManage = isInstructor || isInstitution;
 
+  const handleResponse = async (e) => {
+    e.preventDefault();
+    const update = await yuvrajUpdateHelpdeskStatus(responseForm.requestId, responseForm.status, { 
+      status: responseForm.status, 
+      note: responseForm.message,
+      respondedBy: user?.name || 'Staff'
+    });
+    setRequests((prev) => prev.map(x => x._id === responseForm.requestId ? update : x));
+    setResponseForm({ requestId: null, message: "", status: "resolved" });
+    setShowResponseForm(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-6xl">
@@ -43,9 +57,10 @@ export default function Yuvraj_Helpdesk() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Create Request */}
-          <div className="bg-white rounded-2xl p-4 shadow border">
-            <h2 className="text-lg font-semibold mb-3">Create Request</h2>
+          {/* Left: Create Request (Students Only) */}
+          {isStudent && (
+            <div className="bg-white rounded-2xl p-4 shadow border">
+              <h2 className="text-lg font-semibold mb-3">Create Request</h2>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Type</label>
@@ -102,9 +117,56 @@ export default function Yuvraj_Helpdesk() {
               <button type="submit" className="btn btn-primary">Submit Request</button>
             </form>
           </div>
+          )}
 
-          {/* Middle: Requests Timeline */}
-          <div className="bg-white rounded-2xl p-4 shadow border lg:col-span-2">
+          {/* Response Form (Instructors/Institutions Only) */}
+          {canManage && showResponseForm && (
+            <div className="bg-white rounded-2xl p-4 shadow border">
+              <h2 className="text-lg font-semibold mb-3">Respond to Request</h2>
+              <form onSubmit={handleResponse} className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Status</label>
+                  <select 
+                    className="select select-bordered w-full" 
+                    value={responseForm.status} 
+                    onChange={(e) => setResponseForm({ ...responseForm, status: e.target.value })}
+                  >
+                    <option value="accepted">Accepted</option>
+                    <option value="processing">Processing</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Response Message</label>
+                  <textarea 
+                    className="textarea textarea-bordered w-full" 
+                    rows={4} 
+                    value={responseForm.message} 
+                    onChange={(e) => setResponseForm({ ...responseForm, message: e.target.value })}
+                    placeholder="Enter your response to the student..."
+                    required
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="btn btn-primary">Send Response</button>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => {
+                      setShowResponseForm(null);
+                      setResponseForm({ requestId: null, message: "", status: "resolved" });
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Requests Timeline */}
+          <div className={`bg-white rounded-2xl p-4 shadow border ${isStudent ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
             <h2 className="text-lg font-semibold mb-3">Requests Timeline</h2>
             <div className="space-y-3">
               {requests.map((r) => (
@@ -114,30 +176,52 @@ export default function Yuvraj_Helpdesk() {
                       <div className="font-medium text-gray-800">{r.title}</div>
                       <div className="text-sm text-gray-500">{r.category} • {r.status}</div>
                     </div>
-                    {canManage && (
-                      <div className="space-x-2">
-                        <button className="btn btn-xs" onClick={async () => {
-                          const u = await yuvrajUpdateHelpdeskStatus(r._id, "accepted", { status: "accepted", note: "Accepted" });
-                          setRequests((prev) => prev.map(x => x._id === r._id ? u : x));
-                        }}>Accept</button>
-                        <button className="btn btn-xs" onClick={async () => {
-                          const u = await yuvrajUpdateHelpdeskStatus(r._id, "processing", { status: "processing", note: "Processing" });
-                          setRequests((prev) => prev.map(x => x._id === r._id ? u : x));
-                        }}>Process</button>
-                        <button className="btn btn-xs" onClick={async () => {
-                          const u = await yuvrajUpdateHelpdeskStatus(r._id, "rejected", { status: "rejected", note: "Rejected" });
-                          setRequests((prev) => prev.map(x => x._id === r._id ? u : x));
-                        }}>Reject</button>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        r.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                        r.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+                        r.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                        r.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {r.status || 'Pending'}
+                      </span>
+                      {canManage && r.status !== 'resolved' && r.status !== 'rejected' && (
+                        <button 
+                          className="btn btn-xs btn-primary" 
+                          onClick={() => {
+                            setShowResponseForm(r._id);
+                            setResponseForm({ ...responseForm, requestId: r._id });
+                          }}
+                        >
+                          Respond
+                        </button>
+                      )}
+                      {isStudent && r.status === 'resolved' && (
+                        <button className="btn btn-xs btn-outline">View Response</button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-sm text-gray-600 mb-2">{r.description}</p>
+                    {r.timeline?.length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500 space-y-1">
+                        {r.timeline.map((t, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className="text-gray-400">•</span>
+                            <div>
+                              <div className="font-medium">{new Date(t.at).toLocaleString()} — {t.status}</div>
+                              {t.note && (
+                                <div className="mt-1 p-2 bg-gray-50 rounded text-sm">
+                                  <span className="font-medium">{t.respondedBy || 'Staff'}:</span> {t.note}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
-                  {r.timeline?.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      {r.timeline.map((t, i) => (
-                        <div key={i}>• {new Date(t.at).toLocaleString()} — {t.status} {t.note ? `(${t.note})` : ''}</div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

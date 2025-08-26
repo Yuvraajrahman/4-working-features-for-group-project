@@ -10,7 +10,7 @@ export default function Yuvraj_Polls() {
   const [polls, setPolls] = useState([]);
   const [active, setActive] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [create, setCreate] = useState({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: "institution", targetRoomId: "" });
+  const [create, setCreate] = useState({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: isInstitution ? "institution" : "room", targetRoomId: "" });
   const [rooms, setRooms] = useState([]);
   const [selectedOption, setSelectedOption] = useState("");
   const [studentTextAnswer, setStudentTextAnswer] = useState("");
@@ -83,7 +83,7 @@ export default function Yuvraj_Polls() {
     }
     const p = await yuvrajCreatePoll(payload);
     setPolls([p, ...polls]);
-    setCreate({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: "institution", targetRoomId: "" });
+    setCreate({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: isInstitution ? "institution" : "room", targetRoomId: "" });
     setCreateOverlay(true);
     setTimeout(() => setCreateOverlay(false), 1200);
   };
@@ -289,7 +289,7 @@ export default function Yuvraj_Polls() {
                 <div>
                   <label className="text-sm text-gray-700">Visibility</label>
                   <select className="select select-bordered w-full" value={create.createdFor} onChange={(e) => setCreate({ ...create, createdFor: e.target.value })}>
-                    <option value="institution">Global (institution)</option>
+                    {isInstitution && <option value="institution">Global (institution)</option>}
                     <option value="room">Specific room</option>
                   </select>
                 </div>

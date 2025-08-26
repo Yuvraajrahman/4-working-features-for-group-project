@@ -68,7 +68,7 @@ export async function loginStudent(req, res) {
 
     const stud = await Student.findOne({ email: email.toLowerCase().trim() });
     if (!stud) {
-      return res.status(401).json({ message: "Student not found." });
+      return res.status(401).json({ message: "Student not found. Please sign up first." });
     }
 
     const isValidPassword = await bcrypt.compare(password, stud.password);
@@ -76,18 +76,22 @@ export async function loginStudent(req, res) {
       return res.status(401).json({ message: "Invalid password." });
     }
 
-    // Check approval status
-    try {
-      const { default: SignupRequest } = await import("../models/yuvraj_SignupRequest.js");
-      const approved = await SignupRequest.findOne({ role: "student", email: stud.email, status: "approved" });
-      if (!approved) {
-        return res.status(403).json({ message: "Signup pending approval by institution" });
-      }
-    } catch (e) {
-      console.warn("Signup approval check skipped:", e?.message);
-    }
+    // No approval check needed - signup is automatic
 
-    return res.json({ token: "demo-token", student: { id: stud._id, name: stud.name } });
+    // Populate institution data for frontend use
+    const studentWithInstitutions = await Student.findById(stud._id).populate('institutions', 'name slug');
+    const primaryInstitution = studentWithInstitutions.institutions[0]; // Use first institution
+
+    return res.json({ 
+      token: "demo-token", 
+      student: { 
+        id: stud._id, 
+        name: stud.name, 
+        email: stud.email,
+        institutionSlug: primaryInstitution?.slug,
+        institutionName: primaryInstitution?.name
+      } 
+    });
 
   } catch (err) {
     console.error("Student login error:", err);

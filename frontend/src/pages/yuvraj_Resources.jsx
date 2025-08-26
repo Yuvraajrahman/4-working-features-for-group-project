@@ -246,6 +246,7 @@ export default function Yuvraj_Resources() {
   const [activeCourse, setActiveCourse] = useState(null);
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState("videos");
+  const [selectedVideo, setSelectedVideo] = useState(0);
   const [overlay, setOverlay] = useState({ show: false, text: '', color: 'green' });
 
   useEffect(() => {
@@ -258,6 +259,7 @@ export default function Yuvraj_Resources() {
   useEffect(() => {
     if (!activeCourse) return;
     yuvrajListCourseItems(activeCourse).then(setItems);
+    setSelectedVideo(0); // Reset to first video when course changes
   }, [activeCourse]);
 
   const videos = useMemo(() => items.filter((i) => i.type === 'youtube'), [items]);
@@ -322,40 +324,59 @@ export default function Yuvraj_Resources() {
           </div>
 
           {tab === 'videos' ? (
-            <div className="space-y-4">
-              {/* Add video button for institution */}
-              {isInstitution && courses.length > 0 && (
-                <div className="mb-2">
-                  <AddVideoButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} onOverlay={setOverlay} />
-                </div>
-              )}
-              {videos.length === 0 && <p className="text-gray-500">No videos available.</p>}
-              {videos.map((v) => {
-                const idMatch = v.url?.match(/[?&]v=([^&#]+)/) || v.url?.match(/youtu\.be\/([^?&#]+)/);
-                const videoId = idMatch ? idMatch[1] : null;
-                const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
-                return (
-                  <div key={v._id} className="space-y-2">
-                    <div className="font-medium text-gray-800">{v.title}</div>
-                    {thumb && (
-                      <div className="relative group cursor-pointer" onClick={() => window.open(v.url, '_blank')}>
-                        <img src={thumb} alt="thumbnail" className="w-full max-w-xl rounded border hover:opacity-90 transition-opacity" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity rounded">
-                          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
-                            <div className="w-0 h-0 border-l-[20px] border-l-white border-y-[12px] border-y-transparent ml-1"></div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <YouTubeEmbed url={v.url} />
-                    {isInstitution && (
-                      <div className="flex gap-2">
-                        <button className="btn btn-xs" onClick={async () => { await yuvrajDeleteCourseItem(activeCourse, v._id); setOverlay({ show: true, text: 'Deleted', color: 'red' }); yuvrajListCourseItems(activeCourse).then(setItems); setTimeout(()=>setOverlay({show:false}),1200); }}>Delete</button>
-                      </div>
-                    )}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Video List - Left Side */}
+              <div className="lg:col-span-1 bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Video List</h3>
+                {isInstitution && courses.length > 0 && (
+                  <div className="mb-3">
+                    <AddVideoButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} onOverlay={setOverlay} />
                   </div>
-                );
-              })}
+                )}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {videos.length === 0 && <p className="text-gray-500 text-sm">No videos available.</p>}
+                  {videos.map((v, index) => (
+                    <div key={v._id} className={`p-3 rounded border cursor-pointer transition-colors ${selectedVideo === index ? 'bg-sky-100 border-sky-300' : 'bg-white hover:bg-gray-50'}`} onClick={() => setSelectedVideo(index)}>
+                      <div className="font-medium text-sm text-gray-800 line-clamp-2">{v.title}</div>
+                      <div className="text-xs text-gray-500 mt-1">Video {index + 1}</div>
+                      {isInstitution && (
+                        <button className="btn btn-xs btn-error mt-2" onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          if (window.confirm('Delete this video?')) {
+                            await yuvrajDeleteCourseItem(activeCourse, v._id); 
+                            setOverlay({ show: true, text: 'Deleted', color: 'red' }); 
+                            yuvrajListCourseItems(activeCourse).then(setItems); 
+                            setTimeout(()=>setOverlay({show:false}),1200);
+                            setSelectedVideo(0);
+                          }
+                        }}>Delete</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Video Player - Right Side */}
+              <div className="lg:col-span-2">
+                {videos.length > 0 && selectedVideo < videos.length ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-semibold text-gray-800">{videos[selectedVideo].title}</h3>
+                      <button 
+                        className="btn btn-sm btn-primary" 
+                        onClick={() => window.open(videos[selectedVideo].url, '_blank')}
+                      >
+                        Open in YouTube
+                      </button>
+                    </div>
+                    <YouTubeEmbed url={videos[selectedVideo].url} />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">Select a video from the playlist to watch</p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

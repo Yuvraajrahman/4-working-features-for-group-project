@@ -50,7 +50,8 @@ export const AuthProvider = ({ children }) => {
       name: userData.institution?.name || userData.instructor?.name || userData.student?.name,
       email: userData.institution?.email || userData.instructor?.email || userData.student?.email,
       role: role,
-      slug: userData.institution?.slug,
+      slug: userData.institution?.slug || userData.instructor?.institutionSlug || userData.student?.institutionSlug,
+      institutionName: userData.institution?.name || userData.instructor?.institutionName || userData.student?.institutionName,
       ...userData // Keep all original data
     };
 

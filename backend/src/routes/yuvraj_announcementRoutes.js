@@ -6,7 +6,14 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 7, 50);
-  const items = await YuvrajAnnouncement.find()
+  const { institutionSlug } = req.query;
+  
+  let query = {};
+  if (institutionSlug) {
+    query.institutionSlug = institutionSlug;
+  }
+  
+  const items = await YuvrajAnnouncement.find(query)
     .sort({ pinned: -1, createdAt: -1 })
     .limit(limit);
   res.json(items);

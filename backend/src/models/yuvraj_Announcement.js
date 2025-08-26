@@ -7,11 +7,13 @@ const yuvrajAnnouncementSchema = new mongoose.Schema(
     author: { type: String, default: "Admin" },
     pinned: { type: Boolean, default: false },
     announcementType: { type: String, default: "general", enum: ["general", "event", "academic", "urgent", "payment", "registration"] },
+    institutionId: { type: mongoose.Schema.Types.ObjectId, ref: "Institution", required: true },
+    institutionSlug: { type: String, required: true },
   },
   { timestamps: true }
 );
 
-yuvrajAnnouncementSchema.index({ pinned: -1, createdAt: -1 });
+yuvrajAnnouncementSchema.index({ institutionSlug: 1, pinned: -1, createdAt: -1 });
 
 const YuvrajAnnouncement = mongoose.model(
   "YuvrajAnnouncement",

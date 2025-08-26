@@ -1,7 +1,11 @@
 const API = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-export async function yuvrajListAnnouncements(limit = 7) {
-  const r = await fetch(`${API}/api/yuvraj/announcements?limit=${limit}`);
+export async function yuvrajListAnnouncements(limit = 7, institutionSlug = null) {
+  let url = `${API}/api/yuvraj/announcements?limit=${limit}`;
+  if (institutionSlug) {
+    url += `&institutionSlug=${encodeURIComponent(institutionSlug)}`;
+  }
+  const r = await fetch(url);
   if (!r.ok) throw new Error("Failed to list announcements");
   const data = await r.json();
   return data.map((d) => ({ ...d, id: d.id || d._id }));
