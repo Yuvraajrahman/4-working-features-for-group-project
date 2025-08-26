@@ -22,13 +22,14 @@ const Field = ({ label, children }) => (
 const Yuvraj_AnnouncementEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isCreate = id === "new";
+  const isCreate = !id;
   const { user, isInstitution } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
   const [announcementType, setAnnouncementType] = useState("general");
   const [done, setDone] = useState(false);
+  const [deleteOverlay, setDeleteOverlay] = useState(false);
 
   useEffect(() => {
     if (!isCreate && id) {
@@ -90,7 +91,8 @@ const Yuvraj_AnnouncementEditor = () => {
     if (!isCreate && id && window.confirm("Are you sure you want to delete this announcement? This action cannot be undone.")) {
       try {
         await yuvrajDeleteAnnouncement(id);
-        navigate("/yuvraj/announcements", { replace: true });
+        setDeleteOverlay(true);
+        setTimeout(() => navigate("/yuvraj/announcements", { replace: true }), 1200);
       } catch (e) {
         console.error(e);
         alert("Failed to delete announcement.");
@@ -101,6 +103,7 @@ const Yuvraj_AnnouncementEditor = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <YuvrajDoneOverlay show={done} text={isCreate ? "Announcement created" : "Announcement updated"} />
+      <YuvrajDoneOverlay show={deleteOverlay} text="Announcement deleted" color="red" />
       <div className="mx-auto max-w-3xl">
         {/* Header Section - Dashboard Style */}
         <div className="mb-8" style={{ marginLeft: "100px" }}>

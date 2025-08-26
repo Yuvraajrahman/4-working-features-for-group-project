@@ -21,6 +21,7 @@ export default function Yuvraj_Polls() {
   const [evaluationRecommendations, setEvaluationRecommendations] = useState("");
   const [targetInstructorName, setTargetInstructorName] = useState("");
   const [done, setDone] = useState(false);
+  const [createOverlay, setCreateOverlay] = useState(false);
 
   useEffect(() => {
     yuvrajListPolls().then(setPolls);
@@ -33,11 +34,18 @@ export default function Yuvraj_Polls() {
           const r = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/institutions/${encodeURIComponent(user.slug)}/rooms`);
           const data = await r.json();
           setRooms(Array.isArray(data) ? data : (data.rooms || []));
+        } else if (isInstructor && user?.id) {
+          // Load rooms assigned to this instructor
+          const r = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/instructors/${user.id}/rooms`);
+          if (r.ok) {
+            const data = await r.json();
+            setRooms(Array.isArray(data) ? data : []);
+          }
         }
       } catch (_) {}
     }
     loadRooms();
-  }, [isInstitution, user?.slug]);
+  }, [isInstitution, isInstructor, user?.slug, user?.id]);
 
   useEffect(() => {
     if (!active) return setDetail(null);
@@ -75,7 +83,9 @@ export default function Yuvraj_Polls() {
     }
     const p = await yuvrajCreatePoll(payload);
     setPolls([p, ...polls]);
-    setCreate({ title: "", description: "", options: "" });
+    setCreate({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: "institution", targetRoomId: "" });
+    setCreateOverlay(true);
+    setTimeout(() => setCreateOverlay(false), 1200);
   };
 
   const myStudentId = user?.id || user?._id || "demo-student";
@@ -92,6 +102,7 @@ export default function Yuvraj_Polls() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <YuvrajDoneOverlay show={done} text="Submitted successfully" />
+      <YuvrajDoneOverlay show={createOverlay} text="Poll created successfully" color="green" />
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center gap-3 mb-6">
           <HamburgerMenu />

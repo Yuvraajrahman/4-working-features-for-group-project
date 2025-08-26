@@ -43,26 +43,108 @@ const GoogleSlidesEmbed = ({ url }) => {
   );
 };
 
-const AddVideoButton = ({ courseId, onAdded }) => {
+const AddVideoButton = ({ courseId, onAdded, onOverlay }) => {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const extractVideoId = (url) => {
+    const match = url.match(/[?&]v=([^&#]+)/) || url.match(/youtu\.be\/([^?&#]+)/);
+    return match ? match[1] : null;
+  };
+
+  const fetchYouTubeTitle = async (videoId) => {
+    try {
+      // Use YouTube oEmbed API to get title (no API key required)
+      const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      if (response.ok) {
+        const data = await response.json();
+        return data.title || "YouTube Video";
+      }
+    } catch (e) {
+      console.warn("Failed to fetch YouTube title:", e);
+    }
+    return "YouTube Video";
+  };
+
+  const handleAddVideo = async () => {
+    if (!url.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      const videoId = extractVideoId(url);
+      let finalTitle = title.trim();
+      
+      if (!finalTitle && videoId) {
+        finalTitle = await fetchYouTubeTitle(videoId);
+      }
+      
+      await yuvrajCreateCourseItem(courseId, { 
+        title: finalTitle || "YouTube Video", 
+        type: 'youtube', 
+        url: url.trim() 
+      });
+      
+      setUrl(""); 
+      setTitle(""); 
+      onAdded?.();
+      onOverlay?.({ show: true, text: 'Video Added', color: 'green' });
+    } catch (error) {
+      console.error("Failed to add video:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!courseId) return null;
   return (
     <div className="flex items-center gap-2">
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="input input-bordered" />
-      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="YouTube link" className="input input-bordered flex-1" />
-      <button className="btn btn-sm" onClick={async () => {
-        await yuvrajCreateCourseItem(courseId, { title: title || "YouTube Video", type: 'youtube', url });
-        setUrl(""); setTitle(""); onAdded?.();
-      }}>Add YouTube Video</button>
+      <input 
+        value={title} 
+        onChange={(e) => setTitle(e.target.value)} 
+        placeholder="Title (auto-filled from YouTube)" 
+        className="input input-bordered" 
+      />
+      <input 
+        value={url} 
+        onChange={(e) => setUrl(e.target.value)} 
+        placeholder="YouTube link" 
+        className="input input-bordered flex-1" 
+      />
+      <button 
+        className="btn btn-sm" 
+        onClick={handleAddVideo}
+        disabled={isLoading || !url.trim()}
+      >
+        {isLoading ? "Adding..." : "Add YouTube Video"}
+      </button>
     </div>
   );
 };
 
-const AddDocumentButton = ({ courseId, onAdded }) => {
+const AddDocumentButton = ({ courseId, onAdded, onOverlay }) => {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [type, setType] = useState("slides");
+  
+  const handleAddDocument = async () => {
+    if (!url.trim()) return;
+    
+    try {
+      await yuvrajCreateCourseItem(courseId, { 
+        title: title.trim() || type.toUpperCase(), 
+        type, 
+        url: url.trim() 
+      });
+      setUrl(""); 
+      setTitle(""); 
+      onAdded?.();
+      onOverlay?.({ show: true, text: 'Document Added', color: 'green' });
+    } catch (error) {
+      console.error("Failed to add document:", error);
+    }
+  };
+
   if (!courseId) return null;
   return (
     <div className="flex items-center gap-2">
@@ -76,10 +158,9 @@ const AddDocumentButton = ({ courseId, onAdded }) => {
       </select>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="input input-bordered" />
       <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className="input input-bordered flex-1" />
-      <button className="btn btn-sm" onClick={async () => {
-        await yuvrajCreateCourseItem(courseId, { title: title || type.toUpperCase(), type, url });
-        setUrl(""); setTitle(""); onAdded?.();
-      }}>Add Document</button>
+      <button className="btn btn-sm" onClick={handleAddDocument} disabled={!url.trim()}>
+        Add Document
+      </button>
     </div>
   );
 };
@@ -140,7 +221,7 @@ export default function Yuvraj_Resources() {
               {/* Add video button for institution */}
               {isInstitution && courses.length > 0 && (
                 <div className="mb-2">
-                  <AddVideoButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} />
+                  <AddVideoButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} onOverlay={setOverlay} />
                 </div>
               )}
               {videos.length === 0 && <p className="text-gray-500">No videos available.</p>}
@@ -167,7 +248,7 @@ export default function Yuvraj_Resources() {
               {/* Add document button for institution */}
               {isInstitution && courses.length > 0 && (
                 <div className="mb-2">
-                  <AddDocumentButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} />
+                  <AddDocumentButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} onOverlay={setOverlay} />
                 </div>
               )}
               {documents.length === 0 && <p className="text-gray-500">No documents available.</p>}
