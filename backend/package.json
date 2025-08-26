@@ -1,0 +1,36 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "dev:all": "concurrently -n backend,frontend -c green,cyan \"npm:dev\" \"npm --prefix ../frontend run dev\"",
+    "dev:all:open": "concurrently -n backend,frontend,browser -c green,cyan,magenta \"npm:dev\" \"npm --prefix ../frontend run dev\" \"wait-on http://localhost:5173 && open-cli http://localhost:5173\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@upstash/ratelimit": "^2.0.6",
+    "@upstash/redis": "^1.35.3",
+    "axios": "^1.11.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.18.0",
+    "multer": "^2.0.2",
+    "react-router": "^7.8.0",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "nodemon": "^3.1.10",
+    "open-cli": "^7.2.0",
+    "wait-on": "^7.2.0"
+  }
+}
