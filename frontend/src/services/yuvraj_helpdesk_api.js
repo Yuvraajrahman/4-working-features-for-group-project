@@ -16,8 +16,13 @@ export async function yuvrajCreateHelpdeskRequest(body) {
   return r.json();
 }
 
-export async function yuvrajListHelpdeskRequests() {
-  const r = await fetch(`${API}/api/yuvraj/helpdesk/requests`);
+export async function yuvrajListHelpdeskRequests(institutionSlug = null) {
+  const url = new URL(`${API}/api/yuvraj/helpdesk/requests`);
+  if (institutionSlug) {
+    url.searchParams.set('institutionSlug', institutionSlug);
+  }
+  
+  const r = await fetch(url);
   if (!r.ok) throw new Error("Failed to list helpdesk requests");
   return r.json();
 }

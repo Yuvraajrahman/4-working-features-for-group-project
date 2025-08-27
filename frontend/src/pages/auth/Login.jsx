@@ -7,7 +7,6 @@ import Navbar from "../../components/Navbar.jsx";
 import HamburgerMenu from "../../components/HamburgerMenu.jsx";
 
 export default function Login() {
-  const [role, setRole] = useState("institution");
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
 
@@ -19,51 +18,55 @@ export default function Login() {
   const fromPath = location.state?.from;
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // Auto-convert email to lowercase
+    const processedValue = name === 'email' ? value.toLowerCase() : value;
+    setForm({ ...form, [name]: processedValue });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    // Build the base path for API calls
-    const base =
-      role === "instructor"
-        ? "/instructors"
-        : role === "student"
-        ? "/students"
-        : "/institutions";
+    // Auto-detect user type by trying different endpoints
+    const endpoints = [
+      { path: "/admin", type: "admin" },
+      { path: "/institutions", type: "institution" },
+      { path: "/instructors", type: "instructor" },
+      { path: "/students", type: "student" }
+    ];
 
-    try {
-      const endpoint = `${base}/login`;
-      const { data } = await api.post(endpoint, form);
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.post(`${endpoint.path}/login`, form);
 
-      // Create user object with role and data
-      const userData = {
-        role,
-        ...(role === "institution" ? data.institution : 
-           role === "instructor" ? data.instructor : data.student)
-      };
+        // Use AuthContext login
+        login(data.token, data);
 
-      // Use AuthContext login
-      login(data.token, userData);
+        // Determine default path after login
+        let defaultPath;
+        if (endpoint.type === "institution") {
+          defaultPath = `/${data.institution.slug}/dashboard`;
+        } else if (endpoint.type === "instructor") {
+          defaultPath = "/teacher/dashboard";
+        } else if (endpoint.type === "admin") {
+          defaultPath = "/admin/dashboard";
+        } else {
+          defaultPath = "/student/dashboard";
+        }
 
-      // Determine default path after login
-      let defaultPath;
-      if (role === "institution") {
-        defaultPath = `/${data.institution.slug}/dashboard`;
-      } else if (role === "instructor") {
-        defaultPath = "/teacher/dashboard";
-      } else {
-        defaultPath = "/student/dashboard";
+        // If someone was trying to hit a protected URL, use that; otherwise use our default
+        const redirectTo = fromPath || defaultPath;
+        navigate(redirectTo, { replace: true });
+        return; // Exit the loop on successful login
+      } catch (err) {
+        // Continue to next endpoint if this one fails
+        continue;
       }
-
-      // If someone was trying to hit a protected URL, use that; otherwise use our default
-      const redirectTo = fromPath || defaultPath;
-      navigate(redirectTo, { replace: true });
-    } catch (err) {
-      setError(err.response?.data?.message || "Login failed.");
     }
+
+    // If we get here, all login attempts failed
+    setError("Invalid email or password.");
   };
 
   return (
@@ -78,26 +81,9 @@ export default function Login() {
         <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-            {role.charAt(0).toUpperCase() + role.slice(1)} Login
+            Login
           </h2>
           <p className="text-gray-600">Sign in to your account</p>
-        </div>
-
-        <div className="mb-4 text-center">
-          <label className="text-sm mr-2 text-gray-700">Role:</label>
-          <select
-            value={role}
-            onChange={(e) => {
-              setRole(e.target.value);
-              setForm({});
-              setError("");
-            }}
-            className="border border-gray-300 p-2 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-          >
-            <option value="institution">Institution</option>
-            <option value="instructor">Instructor</option>
-            <option value="student">Student</option>
-          </select>
         </div>
 
         {error && (
@@ -107,8 +93,8 @@ export default function Login() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input name="email" label="Email" type="email" onChange={handleChange} />
-          <Input name="password" label="Password" type="password" onChange={handleChange} />
+          <Input name="email" label="Email" type="email" value={form.email || ''} onChange={handleChange} />
+          <Input name="password" label="Password" type="password" value={form.password || ''} onChange={handleChange} />
 
           <button
             type="submit"
@@ -145,13 +131,14 @@ export default function Login() {
 }
 
 // Extracted Input component
-function Input({ name, label, type = "text", onChange }) {
+function Input({ name, label, type = "text", value, onChange }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
         name={name}
         type={type}
+        value={value}
         onChange={onChange}
         required
         className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"

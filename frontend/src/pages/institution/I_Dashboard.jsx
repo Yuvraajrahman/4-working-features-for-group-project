@@ -1,14 +1,20 @@
 // frontend/src/pages/institution/I_Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { yuvrajListHelpdeskRequests } from "../../services/yuvraj_helpdesk_api";
+import { yuvrajListAnnouncements } from "../../services/yuvraj_announcements_api";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function I_Dashboard() {
   const { idOrName } = useParams();
+  const { user } = useAuth();
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg]   = useState("");
   const [currentInstructors, setCurrentInstructors] = useState([]);
   const [currentStudents, setCurrentStudents] = useState([]);
+  const [helpdeskRequests, setHelpdeskRequests] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
   const loadMembers = () => {
     fetch(`http://localhost:5001/api/institutions/${encodeURIComponent(idOrName)}/instructors`)
@@ -20,6 +26,21 @@ export default function I_Dashboard() {
       .then(res => res.ok ? res.json() : [])
       .then(setCurrentStudents)
       .catch(() => setCurrentStudents([]));
+  };
+
+  const loadInstitutionContent = async () => {
+    try {
+      // Load helpdesk requests assigned to this institution
+      const requests = await yuvrajListHelpdeskRequests(user?.slug);
+      const institutionRequests = requests.filter(req => req.assigneeType === 'institution');
+      setHelpdeskRequests(institutionRequests.slice(0, 5)); // Show latest 5
+      
+      // Load announcements created by this institution
+      const announcements = await yuvrajListAnnouncements(10, user?.slug);
+      setAnnouncements(announcements.slice(0, 5)); // Show latest 5
+    } catch (error) {
+      console.error('Error loading institution content:', error);
+    }
   };
 
   useEffect(() => {
@@ -48,6 +69,9 @@ export default function I_Dashboard() {
     
     // Load current members
     loadMembers();
+    
+    // Load institution content (helpdesk & announcements)
+    loadInstitutionContent();
     
     // Refresh members every 10 seconds to catch new signups
     const interval = setInterval(loadMembers, 10000);
@@ -331,6 +355,61 @@ export default function I_Dashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Helpdesk Requests Section */}
+          <div style={{ marginTop: "1.5rem", width: "100%" }}>
+            <h3 style={{ margin: 0, marginBottom: ".5rem" }}>Recent Helpdesk Requests ({helpdeskRequests.length})</h3>
+            <div style={{ maxHeight: "200px", overflowY: "auto", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: ".5rem", padding: ".5rem" }}>
+              {helpdeskRequests.length === 0 ? (
+                <div style={{ color: "#64748b", fontSize: ".875rem" }}>No helpdesk requests</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                  {helpdeskRequests.map((req) => (
+                    <div key={req._id} style={{ fontSize: '.875rem', padding: '.5rem', background: '#ffffff', borderRadius: '.375rem', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 500, color: '#374151' }}>{req.title}</div>
+                      <div style={{ color: '#64748b', marginTop: '.25rem' }}>
+                        {req.category} • {req.status || 'Pending'} • {new Date(req.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {helpdeskRequests.length > 0 && (
+              <Link to="/yuvraj/helpdesk" style={{ color: '#2563eb', fontSize: '.875rem', textDecoration: 'none', marginTop: '.5rem', display: 'inline-block' }}>
+                View all helpdesk requests →
+              </Link>
+            )}
+          </div>
+
+          {/* Announcements Section */}
+          <div style={{ marginTop: "1.5rem", width: "100%" }}>
+            <h3 style={{ margin: 0, marginBottom: ".5rem" }}>Recent Announcements ({announcements.length})</h3>
+            <div style={{ maxHeight: "200px", overflowY: "auto", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: ".5rem", padding: ".5rem" }}>
+              {announcements.length === 0 ? (
+                <div style={{ color: "#64748b", fontSize: ".875rem" }}>No announcements yet</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                  {announcements.map((ann) => (
+                    <div key={ann._id} style={{ fontSize: '.875rem', padding: '.5rem', background: '#ffffff', borderRadius: '.375rem', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 500, color: '#374151' }}>{ann.title}</div>
+                      <div style={{ color: '#64748b', marginTop: '.25rem' }}>
+                        {ann.announcementType || 'General'} • {new Date(ann.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: '.5rem', display: 'flex', gap: '.5rem' }}>
+              <Link to="/yuvraj/announcements" style={{ color: '#2563eb', fontSize: '.875rem', textDecoration: 'none' }}>
+                View all announcements →
+              </Link>
+              <Link to="/yuvraj/institution/announcements/new" style={{ color: '#059669', fontSize: '.875rem', textDecoration: 'none' }}>
+                Create announcement →
+              </Link>
             </div>
           </div>
         </div>

@@ -41,6 +41,7 @@ import Yuvraj_Resources from "./pages/yuvraj_Resources.jsx";
 import Yuvraj_Helpdesk from "./pages/yuvraj_Helpdesk.jsx";
 import Yuvraj_Polls from "./pages/yuvraj_Polls.jsx";
 import TimelineDemo from "./components/room/TimelineDemo.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 
 export default function App() {
   return (
@@ -74,6 +75,13 @@ export default function App() {
         <Route path="/yuvraj/resources" element={<Yuvraj_Resources />} />
         <Route path="/yuvraj/helpdesk" element={<Yuvraj_Helpdesk />} />
         <Route path="/yuvraj/polls" element={<Yuvraj_Polls />} />
+
+        {/* Admin Routes */}
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
 
         {/* 4. Admin - REMOVED - replaced with institution role */}
         {/* <Route path="/admin/login" element={<Login />} />

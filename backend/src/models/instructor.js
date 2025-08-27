@@ -13,7 +13,8 @@ const instructorSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
-      trim: true
+      trim: true,
+      lowercase: true
     },
     password: {
       type: String,
@@ -24,8 +25,7 @@ const instructorSchema = new mongoose.Schema(
     institutions: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Institution",
-        required: true
+        ref: "Institution"
       }
     ],
 

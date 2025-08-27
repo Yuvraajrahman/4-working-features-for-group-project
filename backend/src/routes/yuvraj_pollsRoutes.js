@@ -6,7 +6,14 @@ import Room from "../models/Room.js";
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-  const polls = await YuvrajPoll.find().sort({ createdAt: -1 });
+  const { institutionSlug } = req.query;
+  
+  let query = {};
+  if (institutionSlug) {
+    query.institutionSlug = institutionSlug;
+  }
+  
+  const polls = await YuvrajPoll.find(query).sort({ createdAt: -1 });
   res.json(polls);
 });
 
@@ -38,10 +45,11 @@ router.post("/:id/vote", async (req, res) => {
       return res.status(500).json({ message: "Room membership check failed" });
     }
   }
-  const existing = await YuvrajPollResponse.findOne({ pollId, studentId: String(studentId) });
+  // Use poll._id (ObjectId) for consistency instead of pollId (string)
+  const existing = await YuvrajPollResponse.findOne({ pollId: poll._id, studentId: String(studentId) });
   if (existing) return res.status(400).json({ message: "Already submitted" });
   const created = await YuvrajPollResponse.create({ 
-    pollId, 
+    pollId: poll._id, // Use ObjectId instead of string
     studentId: String(studentId), 
     studentName, 
     optionId, 

@@ -5,6 +5,9 @@ const YuvrajHelpdeskRequestSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true },
     assigneeType: { type: String, enum: ["instructor", "institution"], required: true },
     assigneeId: { type: mongoose.Schema.Types.ObjectId },
+    // Institution filtering
+    institutionId: { type: mongoose.Schema.Types.ObjectId, ref: "Institution" },
+    institutionSlug: { type: String },
     category: {
       type: String,
       enum: [

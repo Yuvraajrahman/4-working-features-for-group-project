@@ -17,7 +17,14 @@ router.post("/consultation-slots", yuvrajAdminOnly, async (req, res) => {
 
 // Helpdesk requests
 router.get("/requests", async (req, res) => {
-  const list = await YuvrajHelpdeskRequest.find().sort({ createdAt: -1 });
+  const { institutionSlug } = req.query;
+  
+  let query = {};
+  if (institutionSlug) {
+    query.institutionSlug = institutionSlug;
+  }
+  
+  const list = await YuvrajHelpdeskRequest.find(query).sort({ createdAt: -1 });
   res.json(list);
 });
 

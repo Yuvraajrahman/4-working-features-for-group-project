@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 
 const HamburgerMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated, isInstitution, isInstructor, isStudent } = useAuth();
+  const { user, isAuthenticated, isInstitution, isInstructor, isStudent, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const toggleMenu = () => {
@@ -31,6 +31,8 @@ const HamburgerMenu = () => {
         return "/teacher/dashboard";
       case "student":
         return "/student/dashboard";
+      case "admin":
+        return "/admin/dashboard";
       default:
         return "/";
     }
@@ -89,7 +91,6 @@ const HamburgerMenu = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-sky-50">
           <div className="flex items-center space-x-3">
-            <img src="/Atsenlogo.png" alt="ATSEN" className="h-8 w-8" />
             <span className="text-lg font-semibold text-sky-800">ATSEN Menu</span>
           </div>
           <button
@@ -121,6 +122,34 @@ const HamburgerMenu = () => {
                   description={`Go to ${user?.role} dashboard`}
                   onClick={() => handleNavigation(getDashboardLink())}
                 />
+              )}
+              {!isAdmin && (
+                <>
+              <MenuItem
+                icon={BarChart3}
+                title="Announcements"
+                description="View and manage important updates"
+                onClick={() => handleNavigation("/yuvraj/announcements")}
+              />
+              <MenuItem
+                icon={BarChart3}
+                title="Polls & Surveys"
+                description="Create polls, Q&A, and evaluations"
+                onClick={() => handleNavigation("/yuvraj/polls")}
+              />
+              <MenuItem
+                icon={Youtube}
+                title="Resources"
+                description="Videos and documents by course"
+                onClick={() => handleNavigation("/yuvraj/resources")}
+              />
+              <MenuItem
+                icon={HelpCircle}
+                title="Helpdesk"
+                description="Submit requests and track status"
+                onClick={() => handleNavigation("/yuvraj/helpdesk")}
+              />
+                </>
               )}
             </div>
           </div>
@@ -176,18 +205,6 @@ const HamburgerMenu = () => {
                 description="One-on-one and group chat with file sharing"
                 disabled={true}
               />
-              <MenuItem
-                icon={BarChart3}
-                title="Announcements"
-                description="View and manage important updates"
-                onClick={() => handleNavigation("/yuvraj/announcements")}
-              />
-              <MenuItem
-                icon={BarChart3}
-                title="Polls & Surveys"
-                description="Create polls, Q&A, and evaluations"
-                onClick={() => handleNavigation("/yuvraj/polls")}
-              />
             </div>
           </div>
 
@@ -197,12 +214,6 @@ const HamburgerMenu = () => {
               Content & Resources
             </h2>
             <div className="space-y-2">
-              <MenuItem
-                icon={Youtube}
-                title="Resources"
-                description="Videos and documents by course"
-                onClick={() => handleNavigation("/yuvraj/resources")}
-              />
               <MenuItem
                 icon={FileText}
                 title="Learning Materials"
@@ -246,12 +257,6 @@ const HamburgerMenu = () => {
                 description="Track academic milestones and progress"
                 disabled={true}
               />
-              <MenuItem
-                icon={HelpCircle}
-                title="Helpdesk"
-                description="Submit requests and track status"
-                onClick={() => handleNavigation("/yuvraj/helpdesk")}
-              />
             </div>
           </div>
 
@@ -279,28 +284,7 @@ const HamburgerMenu = () => {
             </div>
           </div>
 
-          {/* Announcements */}
-          <div className="p-4">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Announcements & Updates
-            </h2>
-            <div className="space-y-2">
-              <MenuItem
-                icon={MessageCircle}
-                title="View Announcements"
-                description="Stay updated with important information"
-                onClick={() => handleNavigation("/yuvraj/announcements")}
-              />
-              {isInstitution && (
-                <MenuItem
-                  icon={MessageCircle}
-                  title="Create Announcements"
-                  description="Share important updates with your community"
-                  onClick={() => handleNavigation("/yuvraj/institution/announcements/new")}
-                />
-              )}
-            </div>
-          </div>
+
         </div>
 
         {/* Footer */}

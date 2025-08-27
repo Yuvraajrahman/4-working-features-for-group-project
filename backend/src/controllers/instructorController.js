@@ -25,11 +25,12 @@ export async function registerInstructor(req, res) {
     // Hash the password
     const hashed = await bcrypt.hash(password, 10);
 
-    // Create instructor record (no more instructorId or institutions)
+    // Create instructor record with empty institutions array (can be assigned later)
     const instr = await Instructor.create({
       name,
       email,
       password: hashed,
+      institutions: [] // Initialize with empty array
     });
 
     // Return minimal payload
@@ -45,6 +46,11 @@ export async function registerInstructor(req, res) {
 // Login instructor
 export async function loginInstructor(req, res) {
   const { email, password } = req.body;
+
+  // Validate required fields
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required." });
+  }
 
   try {
     // First check if it's a demo user

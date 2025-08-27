@@ -1,27 +1,51 @@
 import express from "express";
 import {
   loginAdmin,
-  getPendingInstitutions,
-  approveInstitution
+  getAllInstitutions,
+  deleteInstitution,
+  getAllStudents,
+  deleteStudent,
+  getAllInstructors,
+  deleteInstructor,
+  getAllAnnouncements,
+  deleteAnnouncement,
+  getAllPolls,
+  deletePoll,
+  getAllHelpdeskRequests,
+  deleteHelpdeskRequest,
+  getDashboardStats
 } from "../controllers/adminController.js";
-import { verifyToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// POST /api/admin/login
+// Auth routes
 router.post("/login", loginAdmin);
 
-// Protected routes (verifyToken is a no-op in demo mode)
-router.get(
-  "/institutions/pending",
-  verifyToken,
-  getPendingInstitutions
-);
+// Dashboard stats
+router.get("/stats", getDashboardStats);
 
-router.post(
-  "/institutions/:id/approve",
-  verifyToken,
-  approveInstitution
-);
+// Institution management
+router.get("/institutions", getAllInstitutions);
+router.delete("/institutions/:institutionId", deleteInstitution);
+
+// Student management
+router.get("/students", getAllStudents);
+router.delete("/students/:studentId", deleteStudent);
+
+// Instructor management
+router.get("/instructors", getAllInstructors);
+router.delete("/instructors/:instructorId", deleteInstructor);
+
+// Announcement management
+router.get("/announcements", getAllAnnouncements);
+router.delete("/announcements/:announcementId", deleteAnnouncement);
+
+// Poll management
+router.get("/polls", getAllPolls);
+router.delete("/polls/:pollId", deletePoll);
+
+// Helpdesk management
+router.get("/helpdesk", getAllHelpdeskRequests);
+router.delete("/helpdesk/:requestId", deleteHelpdeskRequest);
 
 export default router;

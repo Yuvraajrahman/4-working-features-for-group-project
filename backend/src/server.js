@@ -21,6 +21,7 @@ import yuvrajResourcesRoutes from "./routes/yuvraj_resourcesRoutes.js";
 import yuvrajHelpdeskRoutes from "./routes/yuvraj_helpdeskRoutes.js";
 import yuvrajPollsRoutes from "./routes/yuvraj_pollsRoutes.js";
 import yuvrajSignupRoutes from "./routes/yuvraj_signupRoutes.js";
+import { ensureAdminExists } from "./controllers/adminController.js";
 
 const app = express();
 const PORT = 5001;
@@ -107,10 +108,14 @@ app.use("/api/yuvraj/polls", yuvrajPollsRoutes);
 app.use("/api/yuvraj/signup", yuvrajSignupRoutes);
 
 // connect to DB (or demo mode), then start the server
-connectDB().then(() => {
+connectDB().then(async () => {
   if (global.__ATSEN_DEMO_NO_DB__) {
     console.warn("Running in DEMO mode without database connection.");
+  } else {
+    // Ensure admin user exists
+    await ensureAdminExists();
   }
+  
   app.listen(PORT, () => {
     console.log("Server started on PORT:", PORT);
   });

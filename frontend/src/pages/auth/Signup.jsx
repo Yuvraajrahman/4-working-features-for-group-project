@@ -22,7 +22,10 @@ export default function Signup() {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // Auto-convert email to lowercase
+    const processedValue = name === 'email' ? value.toLowerCase() : value;
+    setForm({ ...form, [name]: processedValue });
   };
 
   const handleSubmit = async (e) => {

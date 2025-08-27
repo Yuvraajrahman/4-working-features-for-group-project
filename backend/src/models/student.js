@@ -16,8 +16,7 @@ const studentSchema = new mongoose.Schema(
       required: true,
       unique: true,
       trim: true,
-      lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, "Please fill a valid email address"]
+      lowercase: true
     },
     password: {
       type: String,

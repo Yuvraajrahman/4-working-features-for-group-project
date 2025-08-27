@@ -38,7 +38,6 @@ const Yuvraj_Announcements = () => {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex items-center gap-3">
           <HamburgerMenu />
-          <img src="/Atsenlogo.png" alt="ATSEN" className="h-12 w-auto drop-shadow" />
           <h1 className="text-2xl font-semibold text-gray-800">Announcements</h1>
         </div>
 
@@ -127,6 +126,9 @@ const Yuvraj_Announcements = () => {
                         'bg-blue-100 text-blue-800'
                       }`}>
                         {(a.announcementType || 'General').charAt(0).toUpperCase() + (a.announcementType || 'general').slice(1)}
+                      </span>
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
+                        🌐 Global
                       </span>
                       {a.pinned && (
                         <span className="text-yellow-600 text-xs">📌</span>

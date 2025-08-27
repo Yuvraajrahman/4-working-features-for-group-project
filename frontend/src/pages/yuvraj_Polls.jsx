@@ -4,6 +4,7 @@ import { yuvrajListPolls, yuvrajGetPoll, yuvrajVotePoll, yuvrajCreatePoll } from
 import { useAuth } from "../contexts/AuthContext.jsx";
 import HamburgerMenu from "../components/HamburgerMenu.jsx";
 import YuvrajDoneOverlay from "../components/yuvraj_DoneOverlay.jsx";
+import { yuvrajListInstructors } from "../services/yuvraj_instructors_api.js";
 
 export default function Yuvraj_Polls() {
   const { user, isInstitution, isStudent, isInstructor } = useAuth();
@@ -12,6 +13,7 @@ export default function Yuvraj_Polls() {
   const [detail, setDetail] = useState(null);
   const [create, setCreate] = useState({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: isInstitution ? "institution" : "room", targetRoomId: "" });
   const [rooms, setRooms] = useState([]);
+  const [instructors, setInstructors] = useState([]);
   const [selectedOption, setSelectedOption] = useState("");
   const [studentTextAnswer, setStudentTextAnswer] = useState("");
   const [showQnaReport, setShowQnaReport] = useState(false);
@@ -24,16 +26,22 @@ export default function Yuvraj_Polls() {
   const [createOverlay, setCreateOverlay] = useState(false);
 
   useEffect(() => {
-    yuvrajListPolls().then(setPolls);
-  }, []);
+    const institutionSlug = user?.slug || null;
+    yuvrajListPolls(institutionSlug).then(setPolls);
+  }, [user]);
 
   useEffect(() => {
-    async function loadRooms() {
+    async function loadRoomsAndInstructors() {
       try {
         if (isInstitution && user?.slug) {
+          // Load rooms
           const r = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/institutions/${encodeURIComponent(user.slug)}/rooms`);
           const data = await r.json();
           setRooms(Array.isArray(data) ? data : (data.rooms || []));
+          
+          // Load instructors from the same institution
+          const institutionInstructors = await yuvrajListInstructors(user.slug);
+          setInstructors(institutionInstructors);
         } else if (isInstructor && user?.id) {
           // Load rooms assigned to this instructor
           const r = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/instructors/${user.id}/rooms`);
@@ -41,10 +49,16 @@ export default function Yuvraj_Polls() {
             const data = await r.json();
             setRooms(Array.isArray(data) ? data : []);
           }
+          
+          // Load instructors from the same institution for instructors too
+          if (user?.slug) {
+            const institutionInstructors = await yuvrajListInstructors(user.slug);
+            setInstructors(institutionInstructors);
+          }
         }
       } catch (_) {}
     }
-    loadRooms();
+    loadRoomsAndInstructors();
   }, [isInstitution, isInstructor, user?.slug, user?.id]);
 
   useEffect(() => {
@@ -71,7 +85,14 @@ export default function Yuvraj_Polls() {
   const handleCreate = async (e) => {
     e.preventDefault();
     const options = create.kind === 'poll' ? create.options.split("\n").map((line, idx) => ({ id: `${idx+1}`, label: line.trim() })).filter(o => o.label) : [];
-    const payload = { title: create.title, description: create.description, kind: create.kind, options };
+    const payload = { 
+      title: create.title, 
+      description: create.description, 
+      kind: create.kind, 
+      options,
+      institutionSlug: user?.slug,
+      createdBy: user?.id
+    };
     if (create.kind === 'evaluation' && create.targetInstructorId) {
       payload.targetInstructorId = create.targetInstructorId;
     }
@@ -81,11 +102,19 @@ export default function Yuvraj_Polls() {
     } else {
       payload.createdFor = 'institution';
     }
-    const p = await yuvrajCreatePoll(payload);
-    setPolls([p, ...polls]);
-    setCreate({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: isInstitution ? "institution" : "room", targetRoomId: "" });
-    setCreateOverlay(true);
-    setTimeout(() => setCreateOverlay(false), 1200);
+    try {
+      const p = await yuvrajCreatePoll(payload);
+      // Refresh the entire polls list to ensure synchronization
+      const institutionSlug = user?.slug || null;
+      const updatedPolls = await yuvrajListPolls(institutionSlug);
+      setPolls(updatedPolls);
+      
+      setCreate({ title: "", description: "", kind: "poll", options: "", targetInstructorId: "", createdFor: isInstitution ? "institution" : "room", targetRoomId: "" });
+      setCreateOverlay(true);
+      setTimeout(() => setCreateOverlay(false), 1200);
+    } catch (error) {
+      console.error('Error creating poll:', error);
+    }
   };
 
   const myStudentId = user?.id || user?._id || "demo-student";
@@ -106,7 +135,6 @@ export default function Yuvraj_Polls() {
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center gap-3 mb-6">
           <HamburgerMenu />
-          <img src="/Atsenlogo.png" alt="ATSEN" className="h-10 w-auto" />
           <h1 className="text-2xl font-semibold text-gray-800">Polls & Surveys</h1>
         </div>
 
@@ -116,9 +144,16 @@ export default function Yuvraj_Polls() {
             <div className="space-y-2">
               {polls.map((p) => (
                 <button key={p._id} onClick={() => setActive(p._id)} className={`w-full text-left p-3 rounded border ${active===p._id ? 'bg-sky-50 border-sky-200' : 'hover:bg-gray-50'}`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="font-medium text-gray-800">{p.title}</div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${p.kind==='poll' ? 'bg-blue-50 text-blue-700 border-blue-200' : p.kind==='qna' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{p.kind === 'poll' ? 'Poll' : p.kind === 'qna' ? 'Q&A' : 'Evaluation'}</span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${p.kind==='poll' ? 'bg-blue-50 text-blue-700 border-blue-200' : p.kind==='qna' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>{p.kind === 'poll' ? 'Poll' : p.kind === 'qna' ? 'Q&A' : 'Evaluation'}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                        p.createdFor === 'room' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-50 text-gray-700 border-gray-200'
+                      }`}>
+                        {p.createdFor === 'room' ? '🏫 Room' : '🌐 Global'}
+                      </span>
+                    </div>
                   </div>
                   <div className="text-sm text-gray-500">{new Date(p.createdAt).toLocaleString()}</div>
                 </button>
@@ -280,9 +315,27 @@ export default function Yuvraj_Polls() {
                 <textarea className="textarea textarea-bordered w-full" placeholder="One option per line" rows={4} value={create.options} onChange={(e) => setCreate({ ...create, options: e.target.value })} />
               )}
               {create.kind === 'evaluation' && isInstitution && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input className="input input-bordered w-full" placeholder="Target Instructor ID" value={create.targetInstructorId} onChange={(e) => setCreate({ ...create, targetInstructorId: e.target.value })} />
-                  <input className="input input-bordered w-full" placeholder="Target Instructor Name" value={targetInstructorName} onChange={(e) => setTargetInstructorName(e.target.value)} />
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Select Instructor for Evaluation</label>
+                  <select 
+                    className="select select-bordered w-full" 
+                    value={create.targetInstructorId} 
+                    onChange={(e) => {
+                      const selectedInstructor = instructors.find(i => i._id === e.target.value);
+                      setCreate({ 
+                        ...create, 
+                        targetInstructorId: e.target.value 
+                      });
+                      setTargetInstructorName(selectedInstructor?.name || '');
+                    }}
+                  >
+                    <option value="">Choose an instructor to evaluate...</option>
+                    {instructors.map((instructor) => (
+                      <option key={instructor._id} value={instructor._id}>
+                        {instructor.name} ({instructor.email})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

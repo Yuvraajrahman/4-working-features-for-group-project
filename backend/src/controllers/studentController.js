@@ -38,6 +38,11 @@ export async function registerStudent(req, res) {
 export async function loginStudent(req, res) {
   const { email, password } = req.body;
 
+  // Validate required fields
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required." });
+  }
+
   try {
     // First check if it's a demo user
     if (email === "student1@gmail.com" && password === "student1") {

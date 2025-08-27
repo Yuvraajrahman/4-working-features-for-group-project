@@ -14,11 +14,13 @@ const YuvrajPollSchema = new mongoose.Schema(
     // For evaluation
     targetInstructorId: { type: String },
     targetInstructorName: { type: String },
+    // Institution filtering
+    institutionId: { type: mongoose.Schema.Types.ObjectId, ref: "Institution" },
+    institutionSlug: { type: String },
     // Scoping
     createdFor: { type: String, enum: ["institution", "room", "global"], default: "institution" },
     targetRoomId: { type: String },
     createdBy: { type: mongoose.Schema.Types.ObjectId },
-    createdFor: { type: String, enum: ["institution", "course", "room", "global"], default: "institution" },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

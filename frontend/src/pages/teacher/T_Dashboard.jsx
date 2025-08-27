@@ -7,11 +7,15 @@ import RoomCard from "../../components/RoomCard";
 import { Link } from "react-router";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { yuvrajListHelpdeskRequests } from "../../services/yuvraj_helpdesk_api";
+import { yuvrajListAnnouncements } from "../../services/yuvraj_announcements_api";
 const T_Dashboard = () => {
   const { user } = useAuth();
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [helpdeskRequests, setHelpdeskRequests] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -35,7 +39,26 @@ const T_Dashboard = () => {
     };
 
     fetchRooms();
+    loadInstructorContent();
   }, [user]);
+
+  const loadInstructorContent = async () => {
+    try {
+      // Load helpdesk requests assigned to this instructor
+      const requests = await yuvrajListHelpdeskRequests(user?.slug);
+      const instructorRequests = requests.filter(req => 
+        req.assigneeType === 'instructor' && 
+        (!req.assigneeId || req.assigneeId === user?.id)
+      );
+      setHelpdeskRequests(instructorRequests.slice(0, 5)); // Show latest 5
+      
+      // Load announcements from the instructor's institution
+      const announcements = await yuvrajListAnnouncements(10, user?.slug);
+      setAnnouncements(announcements.slice(0, 5)); // Show latest 5
+    } catch (error) {
+      console.error('Error loading instructor content:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -87,6 +110,63 @@ const T_Dashboard = () => {
                 </Link>
               </div>
             )}
+
+            {/* Helpdesk and Announcements Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+              {/* Helpdesk Requests Section */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">Helpdesk Requests ({helpdeskRequests.length})</h2>
+                  <Link to="/yuvraj/helpdesk" className="text-sky-600 hover:text-sky-700 text-sm font-medium">
+                    View All →
+                  </Link>
+                </div>
+                
+                {helpdeskRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No helpdesk requests assigned to you</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {helpdeskRequests.map((req) => (
+                      <div key={req._id} className="p-3 rounded border border-gray-100 hover:bg-gray-50">
+                        <div className="font-medium text-gray-800 text-sm">{req.title}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {req.category} • {req.status || 'Pending'} • {new Date(req.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Institution Announcements Section */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-gray-800">Institution Announcements ({announcements.length})</h2>
+                  <Link to="/yuvraj/announcements" className="text-sky-600 hover:text-sky-700 text-sm font-medium">
+                    View All →
+                  </Link>
+                </div>
+                
+                {announcements.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No announcements from your institution</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {announcements.map((ann) => (
+                      <div key={ann._id} className="p-3 rounded border border-gray-100 hover:bg-gray-50">
+                        <div className="font-medium text-gray-800 text-sm">{ann.title}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {ann.announcementType || 'General'} • {new Date(ann.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
       </div>

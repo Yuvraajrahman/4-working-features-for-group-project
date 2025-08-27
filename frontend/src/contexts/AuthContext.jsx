@@ -34,25 +34,33 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (token, userData) => {
-    // Determine user role based on the response structure
+    // Determine user role based on the response structure  
     let role = 'student'; // default
+    let userObj = userData;
+    
     if (userData.institution) {
       role = 'institution';
+      userObj = userData.institution;
     } else if (userData.instructor) {
-      role = 'instructor';
+      role = 'instructor'; 
+      userObj = userData.instructor;
     } else if (userData.student) {
       role = 'student';
+      userObj = userData.student;
+    } else if (userData.admin) {
+      role = 'admin';
+      userObj = userData.admin;
     }
 
     // Create a unified user object
     const user = {
-      id: userData.institution?.id || userData.instructor?.id || userData.student?.id,
-      name: userData.institution?.name || userData.instructor?.name || userData.student?.name,
-      email: userData.institution?.email || userData.instructor?.email || userData.student?.email,
+      id: userObj.id,
+      name: userObj.name,
+      email: userObj.email,
       role: role,
-      slug: userData.institution?.slug || userData.instructor?.institutionSlug || userData.student?.institutionSlug,
-      institutionName: userData.institution?.name || userData.instructor?.institutionName || userData.student?.institutionName,
-      ...userData // Keep all original data
+      slug: userObj.slug || userObj.institutionSlug,
+      institutionName: userObj.institutionName,
+      ...userObj // Keep all original data
     };
 
     localStorage.setItem('token', token);
@@ -76,7 +84,8 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isInstitution: user?.role === 'institution',
     isInstructor: user?.role === 'instructor',
-    isStudent: user?.role === 'student'
+    isStudent: user?.role === 'student',
+    isAdmin: user?.role === 'admin'
   };
 
   return (

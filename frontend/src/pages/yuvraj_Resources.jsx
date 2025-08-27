@@ -43,6 +43,115 @@ const GoogleSlidesEmbed = ({ url }) => {
   );
 };
 
+const GoogleDocsEmbed = ({ url }) => {
+  // Convert Google Docs URL to embedded format
+  const embedUrl = url.includes("/embed?") ? url : url.replace(/\/edit.*$/, "/preview");
+  return (
+    <div className="w-full h-96">
+      <iframe className="w-full h-full rounded-xl border" src={embedUrl} />
+    </div>
+  );
+};
+
+const GoogleSheetsEmbed = ({ url }) => {
+  // Convert Google Sheets URL to embedded format
+  const embedUrl = url.includes("/embed?") ? url : url.replace(/\/edit.*$/, "/preview");
+  return (
+    <div className="w-full h-96">
+      <iframe className="w-full h-full rounded-xl border" src={embedUrl} />
+    </div>
+  );
+};
+
+const DocumentViewer = ({ item, showActions = false, onDelete }) => {
+  const downloadUrl = (url) => {
+    // Convert Google URLs to download format
+    if (url.includes('docs.google.com')) {
+      if (url.includes('/document/')) {
+        return url.replace(/\/edit.*$/, '/export?format=pdf');
+      } else if (url.includes('/presentation/')) {
+        return url.replace(/\/edit.*$/, '/export/pdf');
+      } else if (url.includes('/spreadsheets/')) {
+        return url.replace(/\/edit.*$/, '/export?format=xlsx');
+      }
+    }
+    return url;
+  };
+
+  const renderContent = () => {
+    switch (item.type) {
+      case 'youtube':
+        return <YouTubeEmbed url={item.url} />;
+      case 'slides':
+        return <GoogleSlidesEmbed url={item.url} />;
+      case 'doc':
+        return <GoogleDocsEmbed url={item.url} />;
+      case 'sheet':
+        return <GoogleSheetsEmbed url={item.url} />;
+      case 'pdf':
+      case 'link':
+      default:
+        return (
+          <div className="p-8 border-2 border-dashed border-gray-300 rounded-xl text-center">
+            <div className="text-gray-600">
+              <div className="text-4xl mb-2">📄</div>
+              <div className="font-medium">{item.title}</div>
+              <div className="text-sm text-gray-500 mt-1">{item.type.toUpperCase()}</div>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {renderContent()}
+      
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-medium text-gray-800">{item.title}</h3>
+          <div className="text-sm text-gray-500">{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Download Button */}
+          <a
+            href={downloadUrl(item.url)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-sm btn-outline"
+            title="Download/Open"
+          >
+            📥 Download
+          </a>
+          
+          {/* Open in New Tab */}
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-sm btn-ghost"
+            title="Open in new tab"
+          >
+            🔗 Open
+          </a>
+          
+          {/* Delete Button (only if showActions is true) */}
+          {showActions && onDelete && (
+            <button
+              onClick={() => onDelete(item._id)}
+              className="btn btn-sm btn-error"
+              title="Delete"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AddVideoButton = ({ courseId, onAdded, onOverlay }) => {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -96,28 +205,43 @@ const AddVideoButton = ({ courseId, onAdded, onOverlay }) => {
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && url.trim()) {
+      e.preventDefault();
+      handleAddVideo();
+    }
+  };
+
   if (!courseId) return null;
   return (
-    <div className="flex items-center gap-2">
-      <input 
-        value={title} 
-        onChange={(e) => setTitle(e.target.value)} 
-        placeholder="Title (auto-filled from YouTube)" 
-        className="input input-bordered" 
-      />
-      <input 
-        value={url} 
-        onChange={(e) => setUrl(e.target.value)} 
-        placeholder="YouTube link" 
-        className="input input-bordered flex-1" 
-      />
-      <button 
-        className="btn btn-sm" 
-        onClick={handleAddVideo}
-        disabled={isLoading || !url.trim()}
-      >
-        {isLoading ? "Adding..." : "Add YouTube Video"}
-      </button>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <input 
+          value={title} 
+          onChange={(e) => setTitle(e.target.value)} 
+          placeholder="Title (auto-filled from YouTube)" 
+          className="input input-bordered input-sm" 
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <input 
+          value={url} 
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Paste YouTube URL and press Enter" 
+          className="input input-bordered input-sm flex-1" 
+        />
+        <button 
+          className="btn btn-primary btn-sm" 
+          onClick={handleAddVideo}
+          disabled={isLoading || !url.trim()}
+        >
+          {isLoading ? "Adding..." : "Add Video"}
+        </button>
+      </div>
+      <div className="text-xs text-gray-500">
+        🎥 Tip: Paste YouTube URL and press Enter to add quickly
+      </div>
     </div>
   );
 };
@@ -126,13 +250,56 @@ const AddDocumentButton = ({ courseId, onAdded, onOverlay }) => {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [type, setType] = useState("slides");
+  const [isLoading, setIsLoading] = useState(false);
   
+  // Auto-generate title from Google Docs/Slides URL
+  const generateTitleFromUrl = async (url) => {
+    try {
+      // Extract document ID from Google URLs
+      const docMatch = url.match(/\/document\/d\/([a-zA-Z0-9-_]+)/);
+      const slidesMatch = url.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+      const sheetsMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      
+      if (docMatch || slidesMatch || sheetsMatch) {
+        const docId = docMatch?.[1] || slidesMatch?.[1] || sheetsMatch?.[1];
+        // Try to fetch document title using Google Drive API (oEmbed approach)
+        try {
+          const oembedUrl = `https://docs.google.com/document/d/${docId}/preview`;
+          return `Google ${type.charAt(0).toUpperCase() + type.slice(1)} Document`;
+        } catch (e) {
+          console.warn('Could not fetch document title:', e);
+        }
+      }
+      
+      // Fallback: Extract filename from URL or use domain
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const filename = pathname.split('/').pop();
+      
+      if (filename && filename.includes('.')) {
+        return filename.split('.')[0].replace(/[-_]/g, ' ');
+      }
+      
+      return `${urlObj.hostname} Document`;
+    } catch (e) {
+      return `${type.charAt(0).toUpperCase() + type.slice(1)} Document`;
+    }
+  };
+
   const handleAddDocument = async () => {
     if (!url.trim()) return;
     
+    setIsLoading(true);
     try {
+      let finalTitle = title.trim();
+      
+      // Auto-generate title if not provided
+      if (!finalTitle) {
+        finalTitle = await generateTitleFromUrl(url.trim());
+      }
+      
       await yuvrajCreateCourseItem(courseId, { 
-        title: title.trim() || type.toUpperCase(), 
+        title: finalTitle || `${type.charAt(0).toUpperCase() + type.slice(1)} Document`, 
         type, 
         url: url.trim() 
       });
@@ -142,25 +309,55 @@ const AddDocumentButton = ({ courseId, onAdded, onOverlay }) => {
       onOverlay?.({ show: true, text: 'Document Added', color: 'green' });
     } catch (error) {
       console.error("Failed to add document:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && url.trim()) {
+      e.preventDefault();
+      handleAddDocument();
     }
   };
 
   if (!courseId) return null;
   return (
-    <div className="flex items-center gap-2">
-      <select className="select select-bordered" value={type} onChange={(e) => setType(e.target.value)}>
-        <option value="slides">Slides</option>
-        <option value="pdf">PDF</option>
-        <option value="doc">DOC</option>
-        <option value="sheet">Sheet</option>
-        <option value="text">Text</option>
-        <option value="link">Link</option>
-      </select>
-      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="input input-bordered" />
-      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className="input input-bordered flex-1" />
-      <button className="btn btn-sm" onClick={handleAddDocument} disabled={!url.trim()}>
-        Add Document
-      </button>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <select className="select select-bordered select-sm" value={type} onChange={(e) => setType(e.target.value)}>
+          <option value="slides">Google Slides</option>
+          <option value="doc">Google Docs</option>
+          <option value="sheet">Google Sheets</option>
+          <option value="pdf">PDF</option>
+          <option value="link">Link</option>
+        </select>
+        <input 
+          value={title} 
+          onChange={(e) => setTitle(e.target.value)} 
+          placeholder="Title (auto-generated if empty)" 
+          className="input input-bordered input-sm" 
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <input 
+          value={url} 
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Paste document URL and press Enter" 
+          className="input input-bordered input-sm flex-1" 
+        />
+        <button 
+          className="btn btn-primary btn-sm" 
+          onClick={handleAddDocument} 
+          disabled={isLoading || !url.trim()}
+        >
+          {isLoading ? "Adding..." : "Add"}
+        </button>
+      </div>
+      <div className="text-xs text-gray-500">
+        💡 Tip: Paste Google Docs/Slides/Sheets URL and press Enter to add quickly
+      </div>
     </div>
   );
 };
@@ -241,7 +438,8 @@ const AddPlaylistButton = ({ onAdded, onOverlay }) => {
 };
 
 export default function Yuvraj_Resources() {
-  const { isInstitution } = useAuth();
+  const { isInstitution, isInstructor } = useAuth();
+  const canEdit = isInstitution; // Only institutions can edit/delete
   const [courses, setCourses] = useState([]);
   const [activeCourse, setActiveCourse] = useState(null);
   const [items, setItems] = useState([]);
@@ -286,7 +484,7 @@ export default function Yuvraj_Resources() {
                   >
                     {c.name}
                   </button>
-                  {isInstitution && activeCourse === c._id && (
+                  {canEdit && activeCourse === c._id && (
                     <button 
                       className="btn btn-xs btn-error ml-1" 
                       onClick={async () => {
@@ -378,30 +576,43 @@ export default function Yuvraj_Resources() {
                 )}
               </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Add document button for institution */}
-              {isInstitution && courses.length > 0 && (
-                <div className="mb-2">
-                  <AddDocumentButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} onOverlay={setOverlay} />
-                </div>
-              )}
-              {documents.length === 0 && <p className="text-gray-500">No documents available.</p>}
-              {documents.map((d) => (
-                <div key={d._id} className="p-3 rounded border hover:bg-gray-50">
-                  <a href={d.url} target="_blank" rel="noreferrer">
-                    <div className="font-medium text-gray-800">{d.title}</div>
-                    <div className="text-sm text-gray-500">{d.type.toUpperCase()}</div>
-                  </a>
-                  {isInstitution && (
-                    <div className="mt-2 flex gap-2">
-                      <button className="btn btn-xs" onClick={async () => { await yuvrajDeleteCourseItem(activeCourse, d._id); setOverlay({ show: true, text: 'Deleted', color: 'red' }); yuvrajListCourseItems(activeCourse).then(setItems); setTimeout(()=>setOverlay({show:false}),1200); }}>Delete</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                     ) : (
+             <div className="space-y-6">
+               {/* Add document button for institution */}
+               {isInstitution && courses.length > 0 && (
+                 <div className="mb-4">
+                   <AddDocumentButton courseId={activeCourse} onAdded={() => yuvrajListCourseItems(activeCourse).then(setItems)} onOverlay={setOverlay} />
+                 </div>
+               )}
+               
+               {documents.length === 0 && (
+                 <div className="text-center py-8">
+                   <div className="text-4xl mb-2">📚</div>
+                   <p className="text-gray-500">No documents available in this playlist.</p>
+                   {isInstitution && (
+                     <p className="text-sm text-gray-400 mt-2">Use the form above to add Google Docs, Slides, PDFs, or other documents.</p>
+                   )}
+                 </div>
+               )}
+               
+               {documents.map((d) => (
+                 <div key={d._id} className="bg-white p-4 rounded-lg border shadow-sm">
+                   <DocumentViewer 
+                     item={d} 
+                     showActions={canEdit}
+                     onDelete={async (itemId) => {
+                       if (window.confirm('Delete this document?')) {
+                         await yuvrajDeleteCourseItem(activeCourse, itemId);
+                         setOverlay({ show: true, text: 'Document Deleted', color: 'red' });
+                         yuvrajListCourseItems(activeCourse).then(setItems);
+                         setTimeout(() => setOverlay({ show: false }), 1200);
+                       }
+                     }}
+                   />
+                 </div>
+               ))}
+             </div>
+           )}
         </div>
       </div>
     </div>

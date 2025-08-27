@@ -1,7 +1,12 @@
 const API = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-export async function yuvrajListPolls() {
-  const r = await fetch(`${API}/api/yuvraj/polls`);
+export async function yuvrajListPolls(institutionSlug = null) {
+  const url = new URL(`${API}/api/yuvraj/polls`);
+  if (institutionSlug) {
+    url.searchParams.set('institutionSlug', institutionSlug);
+  }
+  
+  const r = await fetch(url);
   if (!r.ok) throw new Error("Failed to list polls");
   return r.json();
 }
